@@ -3,7 +3,16 @@
 .Rapp.history
 
 # Session Data files
-.RData
+placenta/footprints/out/*
+placenta/footprints/out/logs/BPJOB.*.log
+placenta/footprints/out/logs/BPJOB.task1.log
+placenta/motifMatching/out/*
+placenta/motifMatching/out/logs/*
+*.RData
+nohup.out
+placenta/footprints/tbl.models.all.placenta.footprints.RData
+placenta/motifMatching/tbl.models.all.placenta.motifMatching.RData
+
 
 # Example code in package build process
 *-Ex.R
