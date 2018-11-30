@@ -2,27 +2,28 @@
 #------------------------------------------------------------------------------
 # we need a configuration file (of R commands), specified on the command line
 # informing us of how to run this whole genome parallelized script
-
-
 #------------------------------------------------------------------------------
 library(RUnit)
 library(trenaSGM)
 library(MotifDb)
 library(motifStack)
-library(biomaRt)
 library(tibble)
 library(BiocParallel)
 library(futile.logger)
 library(RPostgreSQL)
 library(org.Hs.eg.db)
-
+library(BatchJobs)
+#------------------------------------------------------------------------------
 configurationFile <- "config.R"
-if(!interactive())
-   configurationFile <- commandArgs(trailingOnly=TRUE)
-
-stopifnot(length(configurationFile) > 0)
 stopifnot(file.exists(configurationFile))
-source(configurationFile)
+
+if(!exists("configurationFileRead"))
+  source(configurationFile)
+
+stopifnot(exists("trenaProject"))
+stopifnot(exists("mtx"))
+stopifnot(exists("goi"))
+
 
 if(!file.exists(OUTPUTDIR)) dir.create(OUTPUTDIR)
 if(!file.exists(fp.logDir)) dir.create(fp.logDir)
@@ -30,95 +31,113 @@ if(!file.exists(tfMapping.logDir)) dir.create(tfMapping.logDir)
 if(!file.exists(model.logDir)) dir.create(model.logDir)
 
 #----------------------------------------------------------------------------------------------------
+basic.build.spec <- list(title="footprint-based-tf-model-builder-for-ADgenes",
+                         type="footprint.database",
+                         stageDirectory=OUTPUTDIR,
+                         genomeName="hg38",
+                         matrix=mtx,
+                         db.host=getFootprintDatabaseHost(trenaProject),
+                         databases=getFootprintDatabaseNames(trenaProject)[1],
+                         annotationDbFile=dbfile(org.Hs.eg.db),
+                         motifDiscovery="builtinFimo",
+                         tfPool=allKnownTFs(identifierType="ensemblGeneID"),
+                         tfMapping=c("MotifDB", "TFClass"),
+                         tfPrefilterCorrelation=0.2,
+                         correlationThreshold=0.2,
+                         orderModelByColumn="rfScore",
+                         solverNames=SOLVERS,
+                         solvers=SOLVERS)
+#----------------------------------------------------------------------------------------------------
 runTests <- function()
 {
    test_determineRegulatoryRegions()
 
 } # runTests
 #----------------------------------------------------------------------------------------------------
-if(!exists("targetGenes")){   # a named list, geneSymbols as names, ensg as content
-   browser()
-   indices <- match(goi, rownames(tbl.geneInfo))
-   deleters <- which(is.na(indices))
-   if(length(deleters) > 0){
-      goi <- goi[-deleters]
-      indices <- indices[-deleters]
-      }
-   targetGenes <- rownames(tbl.geneInfo[indices,])
-   names(targetGenes) <- goi
-   }
+# if(!exists("targetGenes")){   # a named list, geneSymbols as names, ensg as content
+#    indices <- match(goi, rownames(tbl.geneInfo))
+#    deleters <- which(is.na(indices))
+#    if(length(deleters) > 0){
+#       goi <- goi[-deleters]
+#       indices <- indices[-deleters]
+#       }
+#    targetGenes <- rownames(tbl.geneInfo[indices,])
+#    names(targetGenes) <- goi
+#    }
 #----------------------------------------------------------------------------------------------------
 # cory's method:
-#   For each gene, I asked if GeneHancer had an entry. If it did, I added +/-2kb from the TSS.
-#   If GeneHancer didn't have any entries, I added +/-5kb from the TSS.
-# the "tiny" mode is for quicker testing, not for production
-# length(setdiff(rownames(tbl.geneInfo), names(enhancer.list))) # 0
-# length(setdiff(names(enhancer.list), rownames(tbl.geneInfo))) # 23
-# thus all genes for which we have tss also have enhancer entries
-# and 23 enhancer genes have no tss
-determineRegulatoryRegions <- function(gene, regionsMode)
+# if there is no ENSG in tbl.geneInfo, return an empty data.frame
+# if there is no geneSymbol for a given ENSG id, then no enhancers are avaialable: use tss +/- 5k
+# if there is a geneSymbol, but no enhancers entry: use tss +/- 5k
+# if the ENSG has a geneSymbol, and the geneSymbol has associated enhancers: use those enhancers AND +/- 2k
+determineRegulatoryRegions <- function(gene)
 {
-   stopifnot(regionsMode %in% c("tiny", "enhancers"))
+   BIG.SHOULDER <- 5000     # used when no enhancers are available
+   SMALL.SHOULDER <- 1000   # used to complement enhancers
 
-   if(!gene %in% names(enhancer.list)){
-       warning(sprintf("no enhancer nor tbl.geneInfo entry for %s, returning empty region", gene))
-       return(data.frame(chrom="none", start=0, end=0, stringsAsFactors=FALSE))
-       }
+   stopifnot(grepl("^ENSG", gene))
 
-   chromosome <- tbl.geneInfo[gene, "chrom"]
-   tss <- tbl.geneInfo[gene, "tss"]
+     # need geneSymbol to look up enhancers
+   tbl.regulatoryRegions.failed <- data.frame()
 
-   if(regionsMode == "tiny"){
-      return(data.frame(chrom=chromosome, start=tss-1000, end=tss+1000, stringsAsFactors=FALSE))
+   index <- match(gene, tbl.geneInfo$ensg)
+   if(all(is.na(index)))
+      return(tbl.regulatoryRegions.failed)
+
+   index <- index[1]   # just in case
+   tbl.thisGene <- tbl.geneInfo[index,]
+   tbl.out <- with(tbl.thisGene, data.frame(chrom=chrom,
+                                            start=tss-BIG.SHOULDER,
+                                            end=tss+BIG.SHOULDER,
+                                            stringsAsFactors=FALSE))
+
+   geneSymbol <- tbl.thisGene$geneSymbol
+   tbl.enhancers <- getEnhancers(trenaProject, geneSymbol)
+
+   if(nrow(tbl.enhancers) == 0){
+      return(tbl.out)
       }
 
-   if(regionsMode == "enhancers"){
-      has.enhancer <- gene %in% names(enhancer.list)
-      if(!has.enhancer){
-         shoulder <- 5000
-         return(data.frame(chrom=chromosome, start=tss-shoulder, end=tss+shoulder, stringsAsFactors=FALSE))
-         }
-        # the gene has enhancers and a tss
-      shoulder <- 2000
-      tbl.enhancers <- enhancer.list[[gene]][,c("chrom", "start", "end")]
-      tbl.promoter <- data.frame(chrom=chromosome, start=tss-shoulder, end=tss+shoulder, stringsAsFactors=FALSE)
-      tbl.regions <- rbind(tbl.promoter, tbl.enhancers)
-      } # regionsMode == "enhancers"
+   tbl.out <- with(tbl.thisGene, data.frame(chrom=chrom,
+                                            start=tss-SMALL.SHOULDER,
+                                            end=tss+SMALL.SHOULDER,
+                                            stringsAsFactors=FALSE))
 
-   return(unique(tbl.regions))
+   tbl.enhancers <- tbl.enhancers[,c("chrom", "start", "end")]
+
+   tbl.out <- rbind(tbl.out, tbl.enhancers)
+   new.order <- order(tbl.out$start)
+   tbl.out <- tbl.out[new.order,]
+   rownames(tbl.out) <- NULL
+
+   return(unique(tbl.out))
 
 } # determineRegulatoryRegions
 #----------------------------------------------------------------------------------------------------
 test_determineRegulatoryRegions <- function()
 {
    printf("--- test_determineRegulatoryRegions")
-   without.enhancer.regions <- setdiff(rownames(mtx), names(enhancer.list))
-   gene <- "ENSG00000187144"
-   tbl.regions <- determineRegulatoryRegions(gene, "tiny")
-   checkEquals(tbl.regions$end - tbl.regions$start, 2000)
-   tbl.regions <- determineRegulatoryRegions(gene, "enhancers")
-   checkEquals(dim(tbl.regions), c(21, 3))
-      # must be at least one region with length 4k, +/- 2kb
-   checkTrue(4000 %in% with(tbl.regions, end-start))
-      # try again
-   gene <- "ENSG00000227232"
-   tbl.regions <- determineRegulatoryRegions(gene, "enhancers")
-   checkEquals(dim(tbl.regions), c(7, 3))
-      # must be at least one region with length 4k, +/- 2kb
-   checkTrue(4000 %in% with(tbl.regions, end-start))
- 
-    # some genes without enhancers
-   suppressWarnings(tbl.regions <- determineRegulatoryRegions(without.enhancer.regions[1], "tiny"))
-   checkEquals(tbl.regions$chrom, "none")
 
-   suppressWarnings(tbl.regions <- determineRegulatoryRegions(without.enhancer.regions[2], "enhancers"))
-   checkEquals(tbl.regions$chrom, "none")
+      # no info on this bogus gene:
+   checkEquals(nrow(determineRegulatoryRegions("ENSGhocusPocusGene")), 0)
+
+      # only tss, no enhancers
+   tbl.1 <- determineRegulatoryRegions("ENSG00000279457")
+   checkEquals(nrow(tbl.1), 1)
+   checkEquals(with(tbl.1, end-start), 10000)
+
+     # now an ENSG gene for which we have tss AND enhancer info
+   tbl.regions <- determineRegulatoryRegions("ENSG00000000003")
+   checkEquals(dim(tbl.regions), c(4,3))
+   checkEquals(colnames(tbl.regions), c("chrom", "start", "end"))
+   checkEquals(with(tbl.regions, end-start), c(1056, 2174, 2000, 8909))
+   checkEquals(with(tbl.regions, sum(end-start)), 14139)
 
 } # test_determineRegulatoryRegions
 #----------------------------------------------------------------------------------------------------
 runStagedSGM.footprints <- function(short.spec)
 {
-   required.fields <- c("targetGene", "geneSymbol", "regionsMode")
+   required.fields <- c("targetGene", "geneSymbol") # , "regionsMode")
    missing.fields <- setdiff(required.fields, names(short.spec))
 
    if(length(missing.fields) > 0){
@@ -134,12 +153,7 @@ runStagedSGM.footprints <- function(short.spec)
    chromosome <- tbl.geneLoc$chrom
    tss <- tbl.geneLoc$tss
 
-   tbl.regions <- determineRegulatoryRegions(targetGene, short.spec$regionsMode)
-   #tbl.regions <- switch(short.spec$regionsMode,
-   #                      "enhancers" = {enhancer.list[[targetGene]][, c("chrom", "start", "end")]},
-   #                      "tiny" = {data.frame(chrom=chromosome, start=tss-1000, end=tss+1000, stringsAsFactors=FALSE)
-   #                      })
-
+   tbl.regions <- determineRegulatoryRegions(targetGene) # , short.spec$regionsMode)
 
    spec <- basic.build.spec
    spec$regions <- tbl.regions
@@ -147,8 +161,6 @@ runStagedSGM.footprints <- function(short.spec)
    spec$tss=tss
    spec$geneSymbol=geneSymbol
    printf("--- path: %s:", spec$stageDir)
-
-   spec
 
    fpBuilder <- FastFootprintDatabaseModelBuilder(spec$genomeName, targetGene, spec,
                                                   quiet=FALSE,
@@ -163,7 +175,7 @@ runStagedSGM.associateTFs <- function(short.spec)
    required.fields <- c("targetGene", "geneSymbol") #, "regionsMode", "correlationThreshold", "solvers", "dbs")
    missing.fields <- setdiff(required.fields, names(short.spec))
    if(length(missing.fields) > 0){
-      msg <- sprintf("runStagedSGM.footprings finds fields missing in short.spec: %s", paste(missing.fields, collapse=", "))
+      msg <- sprintf("runStagedSGM.footprints finds fields missing in short.spec: %s", paste(missing.fields, collapse=", "))
       stop(msg)
       }
 
@@ -176,24 +188,16 @@ runStagedSGM.associateTFs <- function(short.spec)
    chromosome <- tbl.geneLoc$chrom
    tss <- tbl.geneLoc$tss
 
-   tbl.regions <- switch(short.spec$regionsMode,
-                         "enhancers" = {enhancer.list[[targetGene]][, c("chrom", "start", "end")]},
-                         "tiny" = {data.frame(chrom=chromosome, start=tss-1000, end=tss+1000, stringsAsFactors=FALSE)
-                         })
-
-
-   
    spec <- basic.build.spec
    spec$targetGene <- targetGene
    spec$tss=tss
-   spec$regions <- tbl.regions
+   spec$regions <- data.frame()
    spec$geneSymbol=geneSymbol
 
    printf("--- path: %s:", spec$stageDir)
 
-
    fpBuilder <- FastFootprintDatabaseModelBuilder(genomeName, targetGene, spec, quiet=FALSE,
-                                              stagedExecutionDirectory=OUTPUTDIR)
+                                                  stagedExecutionDirectory=OUTPUTDIR)
    fp.filename <- staged.fast.build(fpBuilder, stage="associateTFs")
    checkTrue(file.exists(fp.filename))
 
@@ -204,7 +208,7 @@ runStagedSGM.buildModels <- function(short.spec)
    required.fields <- c("targetGene", "geneSymbol", "regionsMode") # , "correlationThreshold", "solvers", "dbs")
    missing.fields <- setdiff(required.fields, names(short.spec))
    if(length(missing.fields) > 0){
-      msg <- sprintf("runStagedSGM.footprings finds fields missing in short.spec: %s", paste(missing.fields, collapse=", "))
+      msg <- sprintf("runStagedSGM.buildModels finds fields missing in short.spec: %s", paste(missing.fields, collapse=", "))
       stop(msg)
       }
 
@@ -217,22 +221,17 @@ runStagedSGM.buildModels <- function(short.spec)
    chromosome <- tbl.geneLoc$chrom
    tss <- tbl.geneLoc$tss
 
-   tbl.regions <- switch(short.spec$regionsMode,
-                         "enhancers" = {enhancer.list[[targetGene]][, c("chrom", "start", "end")]},
-                         "tiny" = {data.frame(chrom=chromosome, start=tss-1000, end=tss+1000, stringsAsFactors=FALSE)
-                         })
-   
+   #tbl.regions <- switch(short.spec$regionsMode,
+   #                      "enhancers" = {enhancer.list[[targetGene]][, c("chrom", "start", "end")]},
+   #                      "tiny" = {data.frame(chrom=chromosome, start=tss-1000, end=tss+1000, stringsAsFactors=FALSE)
+   #                      })
+
    spec <- basic.build.spec
    spec$targetGene <- targetGene
    spec$tss=tss
-   spec$regions <- tbl.regions
+   spec$regions <- data.frame()
    spec$geneSymbol=geneSymbol
    printf("--- path: %s:", spec$stageDir)
-
-
-   #spec$correlationThreshold <-
-   #spec$solvers <- 
-   #spec$dbs <- 
 
    fpBuilder <- FastFootprintDatabaseModelBuilder(genomeName, targetGene, spec, quiet=FALSE,
                                               stagedExecutionDirectory=OUTPUTDIR)
@@ -246,7 +245,7 @@ do.runStagedSGM.footprints <- function()
    short.specs <- lapply(goi,
                           function(gene)
                             list(targetGene=gene,
-                                 geneSymbol=tbl.geneInfo[gene,"geneSymbol"],
+                                 geneSymbol=subset(tbl.geneInfo, ensg==gene)$geneSymbol,
                                  regionsMode="enhancers"))
    names(short.specs) <- as.character(goi)
 
@@ -261,7 +260,7 @@ do.runStagedSGM.associateTFs <- function()
    short.specs <- lapply(goi,
                           function(gene)
                             list(targetGene=gene,
-                                 geneSymbol=tbl.geneInfo[gene,"geneSymbol"],
+                                 geneSymbol=subset(tbl.geneInfo, ensg==gene)$geneSymbol,
                                  regionsMode="enhancers"))
    names(short.specs) <- as.character(goi)
 
@@ -278,19 +277,20 @@ do.runStagedSGM.buildModels <- function()
    short.specs <- lapply(goi,
                           function(gene)
                             list(targetGene=gene,
-                                 geneSymbol=tbl.geneInfo[gene,"geneSymbol"],
+                                 geneSymbol=subset(tbl.geneInfo, ensg==gene)$geneSymbol,
                                  regionsMode="enhancers"))
 
    names(short.specs) <- as.character(goi)
 
    if(interactive()) runStagedSGM.buildModels(short.specs[[1]])
+
    bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=model.logDir, level="INFO")
    results.buildModels <<- bptry({bplapply(short.specs, runStagedSGM.buildModels, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.buildModels
 #----------------------------------------------------------------------------------------------------
 if(!interactive()){
-   printf("starting run of %d goi to %s", length(goi), OUTPUTDIR)
+   printf("starting run of %d goi, writing staged results to %s", length(goi), OUTPUTDIR)
    do.runStagedSGM.footprints()
    do.runStagedSGM.associateTFs()
    do.runStagedSGM.buildModels()
