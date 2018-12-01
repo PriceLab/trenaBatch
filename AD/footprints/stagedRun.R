@@ -6,8 +6,6 @@
 library(RUnit)
 library(trenaSGM)
 library(MotifDb)
-library(motifStack)
-library(tibble)
 library(BiocParallel)
 library(futile.logger)
 library(RPostgreSQL)
