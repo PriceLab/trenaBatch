@@ -287,7 +287,7 @@ do.runStagedSGM.buildModels <- function()
 
    if(interactive()) runStagedSGM.buildModels(short.specs[[1]])
 
-   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=model.logDir, level="INFO")
+   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=model.logDir, threshold="INFO")
    results.buildModels <<- bptry({bplapply(short.specs, runStagedSGM.buildModels, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.buildModels
