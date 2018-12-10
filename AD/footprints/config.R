@@ -1,4 +1,5 @@
-library(TrenaProjectIGAP)
+library(TrenaProjectGBM)
+library(TrenaProject)
 
 OUTPUTDIR <- "demo"
 SOLVERS <- c("lasso", "lassopv", "pearson", "randomForest", "ridge", "spearman", "sqrtLasso")
@@ -7,11 +8,11 @@ fp.logDir <- "logs.fp"
 tfMapping.logDir <- "logs.tfMapping"
 model.logDir <- "logs.model"
 
-trenaProject <- TrenaProjectIGAP()
+trenaProject <- TrenaProjectGBM()
 getExpressionMatrixNames(trenaProject)
-mtx <- getExpressionMatrix(trenaProject, "Scaled_Winsorized_MayoRNAseq_TCX-ENSG")
+mtx <- getExpressionMatrix(trenaProject, "tbl.gbm.endogenous")
 
-load(system.file(package="TrenaProjectIGAP", "extdata", "geneInfoTable.RData"))
+load(system.file(package="TrenaProject", "extdata", "geneInfoTable.RData"))
 
 failures <- which(nchar(tbl.geneInfo$hgnc_symbol) == 0)
 length(failures)
@@ -21,7 +22,7 @@ dim(tbl.geneInfo)
 all(rownames(mtx) %in% tbl.geneInfo$ensg)
 no.transcript.ensgs <- setdiff(rownames(mtx), unique(tbl.geneInfo$ensg))  # [1] 61
 
-print(load(system.file(package="TrenaProject", "extdata", "epigenome", "geneHancer.v4.7.allGenes.RData"))) # 61
+print(load(system.file(package="TrenaProjectGBM", "extdata", "epigenome", "geneHancer.v4.7.allGenes.RData"))) # 61
 dim(tbl.enhancers)
 geneSymbols.with.enhancers <- intersect(tbl.geneInfo$geneSymbol, unique(tbl.enhancers$geneSymbol))
 printf("geneSymbols.with.enhancers: %d", length(geneSymbols.with.enhancers)) # 15294
