@@ -10,9 +10,13 @@ model.logDir <- "logs.model"
 
 trenaProject <- TrenaProjectGBM()
 getExpressionMatrixNames(trenaProject)
-mtx <- getExpressionMatrix(trenaProject, "tbl.gbm.endogenous")
+matrix.name <- "Scaled_Winsorized_MayoRNAseq_TCX-ENSG"
+stopifnot(matrix.name %in% getExpressionMatrixNames(trenaProject))
+mtx <- getExpressionMatrix(trenaProject, matrix.name)
 
-load(system.file(package="TrenaProject", "extdata", "geneInfoTable.RData"))
+stopifnot(grepl("ENSG", rownames(mtx)[1]))
+
+print(load(system.file(package="TrenaProject", "extdata", "geneInfoTable.RData")))
 
 failures <- which(nchar(tbl.geneInfo$hgnc_symbol) == 0)
 length(failures)
@@ -22,7 +26,7 @@ dim(tbl.geneInfo)
 all(rownames(mtx) %in% tbl.geneInfo$ensg)
 no.transcript.ensgs <- setdiff(rownames(mtx), unique(tbl.geneInfo$ensg))  # [1] 61
 
-print(load(system.file(package="TrenaProjectGBM", "extdata", "epigenome", "geneHancer.v4.7.allGenes.RData"))) # 61
+print(load(system.file(package="TrenaProject", "extdata", "epigenome", "geneHancer.v4.7.allGenes.RData"))) # 61
 dim(tbl.enhancers)
 geneSymbols.with.enhancers <- intersect(tbl.geneInfo$geneSymbol, unique(tbl.enhancers$geneSymbol))
 printf("geneSymbols.with.enhancers: %d", length(geneSymbols.with.enhancers)) # 15294
@@ -35,6 +39,7 @@ length(ensg.without.enhancers)       # 1708
 length(setdiff(rownames(mtx), ensg.with.enhancers))   # 1708/17003 = 15295 mtx engs have no enhancers
 
 goi.test <- c(ensg.with.enhancers[1], ensg.without.enhancers[1])
-goi <- head(rownames(mtx), n=2)
+#goi <- head(rownames(mtx), n=50)
+goi <- "ENSG00000227232"
 printf("established %d goi", length(goi))
 configurationFileRead <- TRUE
