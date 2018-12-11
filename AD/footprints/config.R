@@ -1,7 +1,6 @@
 library(TrenaProjectGBM)
 library(TrenaProject)
 
-stopifnot(packageVersion("TrenaProject") >= "0.99.24")
 stopifnot(packageVersion("TrenaProjectGBM") >= "0.99.03")
 
 OUTPUTDIR <- "demo"
@@ -20,6 +19,7 @@ mtx <- getExpressionMatrix(trenaProject, matrix.name)
 stopifnot(grepl("ENSG", rownames(mtx)[1]))
 
 print(load(system.file(package="TrenaProject", "extdata", "geneInfoTable.RData")))
+stopifnot(exists("tbl.geneInfo"))
 
 failures <- which(nchar(tbl.geneInfo$hgnc_symbol) == 0)
 length(failures)

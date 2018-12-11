@@ -14,6 +14,7 @@ library(BatchJobs)
 #------------------------------------------------------------------------------
 stopifnot(packageVersion("trena") >= "1.5.12")
 stopifnot(packageVersion("trenaSGM") >= "0.99.57")
+stopifnot(packageVersion("TrenaProject") >= "0.99.25")
 #------------------------------------------------------------------------------
 configurationFile <- "config.R"
 stopifnot(file.exists(configurationFile))
@@ -146,10 +147,14 @@ runStagedSGM.footprints <- function(short.spec)
       stop(msg)
       }
 
-   printf("-- runSGM(%s) footprints", short.spec$targetGene)
+   printf("-- runSGM(%s:%s) footprints", short.spec$targetGene, short.spec$geneSymbol)
 
    targetGene <- short.spec$targetGene
    geneSymbol <- short.spec$geneSymbol
+
+   stopifnot(nchar(targetGene) >= 2)
+   stopifnot(nchar(geneSymbol) >= 2)
+
    tbl.geneLoc <- tbl.geneInfo[targetGene,]
    chromosome <- tbl.geneLoc$chrom
    tss <- tbl.geneLoc$tss
@@ -290,6 +295,11 @@ do.runStagedSGM.buildModels <- function()
 
 } # do.runStagedSGM.buildModels
 #----------------------------------------------------------------------------------------------------
+unrecognized.goi.ensgs <- setdiff(goi, tbl.geneInfo$ensg)
+printf("%d unrecognized ensg human genes, eliminating for now", length(unrecognized.goi.ensgs))
+
+goi <- intersect(goi, tbl.geneInfo$ensg)
+
 if(!interactive()){
    printf("starting run of %d goi, writing staged results to %s", length(goi), OUTPUTDIR)
    do.runStagedSGM.footprints()
