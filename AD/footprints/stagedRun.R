@@ -13,7 +13,7 @@ library(org.Hs.eg.db)
 library(BatchJobs)
 #------------------------------------------------------------------------------
 stopifnot(packageVersion("trena") >= "1.5.12")
-stopifnot(packageVersion("trenaSGM") >= "0.99.57")
+stopifnot(packageVersion("trenaSGM") >= "0.99.61")
 stopifnot(packageVersion("TrenaProject") >= "0.99.25")
 #------------------------------------------------------------------------------
 configurationFile <- "config.R"
