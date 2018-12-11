@@ -12,9 +12,7 @@ library(RPostgreSQL)
 library(org.Hs.eg.db)
 library(BatchJobs)
 #------------------------------------------------------------------------------
-stopifnot(packageVersion("TrenaProject") >= "0.99.22")
-stopifnot(packageVersion("TrenaProjectIGAP") >= "0.99.14")
-stopifnot(packageVersion("trena") >= "1.5.1")
+stopifnot(packageVersion("trena") >= "1.5.11")
 stopifnot(packageVersion("trenaSGM") >= "0.99.57")
 #------------------------------------------------------------------------------
 configurationFile <- "config.R"

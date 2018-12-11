@@ -1,6 +1,9 @@
 library(TrenaProjectGBM)
 library(TrenaProject)
 
+stopifnot(packageVersion("TrenaProject") >= "0.99.24")
+stopifnot(packageVersion("TrenaProjectGBM") >= "0.99.03")
+
 OUTPUTDIR <- "demo"
 SOLVERS <- c("lasso", "lassopv", "pearson", "randomForest", "ridge", "spearman", "sqrtLasso")
 
@@ -39,7 +42,7 @@ length(ensg.without.enhancers)       # 1708
 length(setdiff(rownames(mtx), ensg.with.enhancers))   # 1708/17003 = 15295 mtx engs have no enhancers
 
 goi.test <- c(ensg.with.enhancers[1], ensg.without.enhancers[1])
-#goi <- head(rownames(mtx), n=50)
-goi <- "ENSG00000227232"
+goi <- head(rownames(mtx), n=5)
+#goi <- "ENSG00000227232"
 printf("established %d goi", length(goi))
 configurationFileRead <- TRUE
