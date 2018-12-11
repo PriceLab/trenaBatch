@@ -121,7 +121,7 @@ test_determineRegulatoryRegions <- function()
 {
    printf("--- test_determineRegulatoryRegions")
 
-      # no info on this bogus gene:
+      # no info on this bogus gene::
    checkEquals(nrow(determineRegulatoryRegions("ENSGhocusPocusGene")), 0)
 
       # only tss, no enhancers
@@ -253,7 +253,7 @@ do.runStagedSGM.footprints <- function()
    names(short.specs) <- as.character(goi)
 
    if(interactive()) runStagedSGM.footprints(short.specs[[1]])   # WASH7P
-   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=fp.logDir, level="INFO")
+   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=fp.logDir, threshold="INFO")
    results.fp <<- bptry({bplapply(short.specs, runStagedSGM.footprints, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.footprints
@@ -268,7 +268,7 @@ do.runStagedSGM.associateTFs <- function()
    names(short.specs) <- as.character(goi)
 
    if(interactive()) runStagedSGM.associateTFs(short.specs[[1]])
-   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=tfMapping.logDir, level="INFO")
+   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=tfMapping.logDir, threshold="INFO")
    results.tfMap <<- bptry({bplapply(short.specs, runStagedSGM.associateTFs, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.associateTFs
