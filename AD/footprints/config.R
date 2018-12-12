@@ -42,7 +42,8 @@ length(ensg.without.enhancers)       # 1708
 length(setdiff(rownames(mtx), ensg.with.enhancers))   # 1708/17003 = 15295 mtx engs have no enhancers
 
 goi.test <- c(ensg.with.enhancers[1], ensg.without.enhancers[1])
-goi <- c(head(rownames(mtx), n=3), "fubar")
+goi <- rownames(mtx)
+#goi <- c(head(rownames(mtx), n=39), "fubar")
 #goi <- "ENSG00000227232"
 printf("established %d goi", length(goi))
 configurationFileRead <- TRUE
