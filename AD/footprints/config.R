@@ -4,6 +4,8 @@ stopifnot(packageVersion("TrenaProject") >= "0.99.36")
 stopifnot(packageVersion("TrenaProjectGBM") >= "0.99.03")
 
 OUTPUTDIR <- "demo"
+OUTPUTDIR <- "2019feb08"
+
 SOLVERS <- c("lasso", "lassopv", "pearson", "randomForest", "ridge", "spearman", "sqrtLasso")
 
 fp.logDir <- "logs.fp"
@@ -46,6 +48,6 @@ length(setdiff(rownames(mtx), ensg.with.enhancers))   # 1708/17003 = 15295 mtx e
 goi.test <- c(ensg.with.enhancers[1], ensg.without.enhancers[1])
 goi <- rownames(mtx)
 #goi <- c(head(rownames(mtx), n=39), "fubar")
-goi <- "ENSG00000002587"
+#goi <- "ENSG00000002587"
 printf("established %d goi", length(goi))
 configurationFileRead <- TRUE
