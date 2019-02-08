@@ -1,6 +1,6 @@
 library(TrenaProjectGBM)
-library(TrenaProject)
 
+stopifnot(packageVersion("TrenaProject") >= "0.99.36")
 stopifnot(packageVersion("TrenaProjectGBM") >= "0.99.03")
 
 OUTPUTDIR <- "demo"
