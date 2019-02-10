@@ -3,6 +3,12 @@
 # we need a configuration file (of R commands), specified on the command line
 # informing us of how to run this whole genome parallelized script
 #------------------------------------------------------------------------------
+args <- commandArgs(trailingOnly=TRUE)
+stopifnot(length(args) == 2)
+startGeneIndex <- as.integer(args[1])
+endGeneIndex <- as.integer(args[2])
+printf("running with genes %d - %d", startGeneIndex, endGeneIndex)
+#-----------------------------------------------------------------------------
 library(RUnit)
 library(trenaSGM)
 library(MotifDb)
@@ -15,6 +21,7 @@ library(BatchJobs)
 stopifnot(packageVersion("trena") >= "1.5.13")
 stopifnot(packageVersion("trenaSGM") >= "0.99.70")
 #------------------------------------------------------------------------------
+
 configurationFile <- "config.R"
 stopifnot(file.exists(configurationFile))
 
@@ -255,7 +262,7 @@ do.runStagedSGM.footprints <- function()
    names(short.specs) <- as.character(goi)
 
    if(interactive()) runStagedSGM.footprints(short.specs[[1]])   # WASH7P
-   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=fp.logDir, threshold="INFO")
+   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=fp.logDir, threshold="INFO", workers=WORKERS)
    results.fp <<- bptry({bplapply(short.specs, runStagedSGM.footprints, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.footprints
@@ -270,7 +277,7 @@ do.runStagedSGM.associateTFs <- function()
    names(short.specs) <- as.character(goi)
 
    if(interactive()) runStagedSGM.associateTFs(short.specs[[1]])
-   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=tfMapping.logDir, threshold="INFO")
+   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=tfMapping.logDir, threshold="INFO", workers=WORKERS)
    results.tfMap <<- bptry({bplapply(short.specs, runStagedSGM.associateTFs, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.associateTFs
@@ -289,7 +296,7 @@ do.runStagedSGM.buildModels <- function()
 
    if(interactive()) runStagedSGM.buildModels(short.specs[[1]])
 
-   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=model.logDir, threshold="INFO")
+   bp.params <- MulticoreParam(stop.on.error=FALSE, log=TRUE, logdir=model.logDir, threshold="INFO", workers=WORKERS)
    results.buildModels <<- bptry({bplapply(short.specs, runStagedSGM.buildModels, BPPARAM=bp.params)})
 
 } # do.runStagedSGM.buildModels
@@ -298,9 +305,12 @@ unrecognized.goi.ensgs <- setdiff(goi, tbl.geneInfo$ensg)
 printf("%d unrecognized ensg human genes, eliminating for now", length(unrecognized.goi.ensgs))
 
 goi <- intersect(goi, tbl.geneInfo$ensg)
+printf("total genes: %d", length(goi))
+goi <- goi[startGeneIndex:endGeneIndex]
 
 if(!interactive()){
-   printf("starting run of %d goi, writing staged results to %s", length(goi), OUTPUTDIR)
+    printf("starting run of %d (%d-%d) goi, writing staged results to %s", length(goi),
+           startGeneIndex, endGeneIndex, OUTPUTDIR)
    do.runStagedSGM.footprints()
    do.runStagedSGM.associateTFs()
    do.runStagedSGM.buildModels()
