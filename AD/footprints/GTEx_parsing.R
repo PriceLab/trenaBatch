@@ -37,6 +37,12 @@ length(blood.sampleIDs) # 2412
 blood.intersect <- which(blood.sampleIDs %in% colnames(mtx))
 length(blood.intersect) # 407
 
+mtx.tissue <- mtx[, blood.intersect]
+
+# get rid of the decimal points in the ensembl ids
+rownames(mtx.tissue) <- sapply(strsplit(rownames(mtx.tissue),"\\."), `[`, 1)
+#----------------------------------------------------------
+# loop through all the tissues and check the sample numbers
 described.count <- 0
 measured.count <- 0
 
@@ -49,5 +55,8 @@ for(tissueName in tbl.tissues$tissue){
    }
 
 printf("described: %d   measured:  %d", described.count, measured.count)
+#----------------------------------------------------------
+
+
 # extract from the big all-tissue matrix
 #mtx.blood <- mtx[, blood.sampleIDs]
