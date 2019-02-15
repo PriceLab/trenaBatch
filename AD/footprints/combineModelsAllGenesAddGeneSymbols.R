@@ -1,7 +1,7 @@
 # creates aggregate of all models in tbl.models, file is tbl.models.all.RData
 # adding hugo geneSymbols for each tf, and for the target gene
 #-------------------------------------------------------------------------------------------------------
-target.dir <- "/ssd/cory/github/trenaBatch/AD/footprints/demo"
+target.dir <- "/ssd/cory/github/trenaBatch/AD/footprints/2019feb09"
 all.gene.directories <- list.files(target.dir)
 all.gene.directories <- grep("ENSG0", all.gene.directories, value=TRUE)
 printf("gene directory count: %d", length(all.gene.directories))
