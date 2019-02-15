@@ -1,3 +1,4 @@
+Rscript stagedRun.R 1 100
 Rscript stagedRun.R 101 200
 Rscript stagedRun.R 201 300
 Rscript stagedRun.R 301 400
