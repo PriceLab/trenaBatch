@@ -3,8 +3,7 @@ library(TrenaProjectGBM)
 stopifnot(packageVersion("TrenaProject") >= "0.99.36")
 stopifnot(packageVersion("TrenaProjectGBM") >= "0.99.03")
 
-OUTPUTDIR <- "demo"
-OUTPUTDIR <- "2019feb08"
+OUTPUTDIR <- "2019feb15"
 WORKERS <- 10
 
 SOLVERS <- c("lasso", "lassopv", "pearson", "randomForest", "ridge", "spearman", "sqrtLasso")
