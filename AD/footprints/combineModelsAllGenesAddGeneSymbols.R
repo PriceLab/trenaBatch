@@ -1,7 +1,8 @@
 # creates aggregate of all models in tbl.models, file is tbl.models.all.RData
 # adding hugo geneSymbols for each tf, and for the target gene
 #-------------------------------------------------------------------------------------------------------
-target.dir <- "/ssd/cory/github/trenaBatch/AD/footprints/2019feb09"
+target.dir <- "./2019feb15"
+stopifnot(file.exists(target.dir))
 all.gene.directories <- list.files(target.dir)
 all.gene.directories <- grep("ENSG0", all.gene.directories, value=TRUE)
 printf("gene directory count: %d", length(all.gene.directories))
@@ -35,11 +36,12 @@ for(gene.dir in all.gene.directories[1:max]){
      } # for gene.dir
 
   
-tbl.models <- tbl <- do.call(rbind, tbls.all)
+tbl.models <- do.call(rbind, tbls.all)
+dim(tbl.models)
 rownames(tbl.models) <- NULL
 
 library(TrenaProject)
-load(system.file(package="TrenaProject", "extdata", "geneInfoTable.RData"))
+load(system.file(package="TrenaProject", "extdata", "geneInfoTable_hg38.RData"))
 dim(tbl.geneInfo)
 
 colnames(tbl.models)[grep("^gene$", colnames(tbl.models))] <- "tf.ensg"
@@ -50,5 +52,5 @@ tbl.models$tf.symbol <- tbl.geneInfo$geneSymbol[matches]
 
 matches <- match(tbl.models$target.ensg, tbl.geneInfo$ensg)
 tbl.models$target.symbol <- tbl.geneInfo$geneSymbol[matches]
-save(tbl.models, file="tbl.models.all.RData")
+save(tbl.models, file=file.path(target.dir, "tbl.models.all.RData")
     
