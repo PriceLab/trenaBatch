@@ -52,5 +52,5 @@ tbl.models$tf.symbol <- tbl.geneInfo$geneSymbol[matches]
 
 matches <- match(tbl.models$target.ensg, tbl.geneInfo$ensg)
 tbl.models$target.symbol <- tbl.geneInfo$geneSymbol[matches]
-save(tbl.models, file=file.path(target.dir, "tbl.models.all.RData")
+save(tbl.models, file=file.path(target.dir, "tbl.models.all.RData"))
     
